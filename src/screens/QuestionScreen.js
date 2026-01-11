@@ -4,36 +4,39 @@
 // ===========================
 
 import { problemGenerator } from '../services/problemGenerator.js';
+import { languageService } from '../services/languageService.js';
 import { router } from '../utils/router.js';
 
 export class QuestionScreen {
-    constructor(params) {
-        this.settings = params.settings;
-        this.problems = [];
-        this.currentIndex = 0;
-        this.startTime = Date.now();
-        this.questionStartTime = Date.now();
-    }
+  constructor(params) {
+    this.settings = params.settings;
+    this.problems = [];
+    this.currentIndex = 0;
+    this.startTime = Date.now();
+    this.questionStartTime = Date.now();
+    this.currentAnswer = '';
+    this.attemptCount = 0;
+  }
 
-    async init() {
-        // Generate problems
-        this.problems = problemGenerator.generateProblems(
-            this.settings.operations,
-            this.settings.difficulty,
-            this.settings.questionCount
-        );
-    }
+  async init() {
+    // Generate problems
+    this.problems = problemGenerator.generateProblems(
+      this.settings.operations,
+      this.settings.difficulty,
+      this.settings.questionCount
+    );
+  }
 
-    render() {
-        const problem = this.problems[this.currentIndex];
-        const progress = this.currentIndex + 1;
-        const total = this.problems.length;
-        const progressPercent = (progress / total) * 100;
+  render() {
+    const problem = this.problems[this.currentIndex];
+    const progress = this.currentIndex + 1;
+    const total = this.problems.length;
+    const progressPercent = (progress / total) * 100;
 
-        const container = document.createElement('div');
-        container.className = 'screen centered fade-in';
+    const container = document.createElement('div');
+    container.className = 'screen centered fade-in';
 
-        container.innerHTML = `
+    container.innerHTML = `
       <div class="container" style="max-width: 600px;">
         <!-- Progress Header -->
         <div class="mb-4">
@@ -60,14 +63,14 @@ export class QuestionScreen {
             ${problem.operand1} ${problem.symbol} ${problem.operand2} = ?
           </div>
           
-          <input 
-            type="number" 
-            class="input-number-large" 
-            id="answer-input" 
-            placeholder="?" 
-            autocomplete="off"
-            style="width: 100%; max-width: 300px;"
-          />
+          <!-- Read-only answer display (no keyboard trigger) -->
+          <div 
+            id="answer-display" 
+            class="answer-display"
+            style="font-family: var(--font-display); font-size: 3rem; font-weight: 700; min-height: 80px; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.1); border-radius: var(--radius-md); border: 2px solid rgba(255, 255, 255, 0.2); margin: 0 auto; max-width: 300px;"
+          >
+            <span id="answer-text" style="color: var(--star-yellow);">${this.currentAnswer || '?'}</span>
+          </div>
         </div>
 
         <!-- Answer Feedback -->
@@ -92,13 +95,13 @@ export class QuestionScreen {
       </div>
     `;
 
-        return container;
-    }
+    return container;
+  }
 
-    afterRender() {
-        // Add styles
-        const style = document.createElement('style');
-        style.textContent = `
+  afterRender() {
+    // Add styles
+    const style = document.createElement('style');
+    style.textContent = `
       .number-pad-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -163,154 +166,185 @@ export class QuestionScreen {
         }
       }
     `;
-        document.head.appendChild(style);
+    document.head.appendChild(style);
 
-        // Focus input
-        const answerInput = document.getElementById('answer-input');
-        answerInput.focus();
+    // Initialize answer display
+    this.updateAnswerDisplay();
 
-        // Event listeners
-        const submitBtn = document.getElementById('submit-btn');
-        submitBtn.addEventListener('click', () => this.submitAnswer());
+    // Event listeners
+    const submitBtn = document.getElementById('submit-btn');
+    submitBtn.addEventListener('click', () => this.submitAnswer());
 
-        const skipBtn = document.getElementById('skip-btn');
-        skipBtn.addEventListener('click', () => this.skipQuestion());
+    const skipBtn = document.getElementById('skip-btn');
+    skipBtn.addEventListener('click', () => this.skipQuestion());
 
-        const quitBtn = document.getElementById('quit-btn');
-        quitBtn.addEventListener('click', () => {
-            if (confirm('Are you sure you want to quit? Your progress will be lost.')) {
-                router.navigate('home');
-            }
-        });
+    const quitBtn = document.getElementById('quit-btn');
+    quitBtn.addEventListener('click', () => {
+      if (confirm('Are you sure you want to quit? Your progress will be lost.')) {
+        router.navigate('home');
+      }
+    });
 
-        answerInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.submitAnswer();
-            }
-        });
+    // No keyboard input needed - keypad only
 
-        // Number pad
-        const numberPadBtns = document.querySelectorAll('.number-pad-btn[data-value]');
-        numberPadBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const value = btn.dataset.value;
-                answerInput.value += value;
-                answerInput.focus();
-            });
-        });
+    // Number pad
+    const numberPadBtns = document.querySelectorAll('.number-pad-btn[data-value]');
+    numberPadBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const value = btn.dataset.value;
+        this.currentAnswer += value;
+        this.updateAnswerDisplay();
+      });
+    });
 
-        const backspaceBtn = document.querySelector('[data-action="backspace"]');
-        backspaceBtn.addEventListener('click', () => {
-            answerInput.value = answerInput.value.slice(0, -1);
-            answerInput.focus();
-        });
+    const backspaceBtn = document.querySelector('[data-action="backspace"]');
+    backspaceBtn.addEventListener('click', () => {
+      this.currentAnswer = this.currentAnswer.slice(0, -1);
+      this.updateAnswerDisplay();
+    });
 
-        const submitPadBtn = document.querySelector('[data-action="submit"]');
-        submitPadBtn.addEventListener('click', () => this.submitAnswer());
+    const submitPadBtn = document.querySelector('[data-action="submit"]');
+    submitPadBtn.addEventListener('click', () => this.submitAnswer());
 
-        this.questionStartTime = Date.now();
+    this.questionStartTime = Date.now();
+  }
+
+  updateAnswerDisplay() {
+    const answerText = document.getElementById('answer-text');
+    if (answerText) {
+      answerText.textContent = this.currentAnswer || '?';
+    }
+  }
+
+  submitAnswer() {
+    const userAnswer = parseInt(this.currentAnswer);
+
+    if (isNaN(userAnswer) || this.currentAnswer === '') {
+      return;
     }
 
-    submitAnswer() {
-        const answerInput = document.getElementById('answer-input');
-        const userAnswer = parseInt(answerInput.value);
+    this.attemptCount++;
 
-        if (isNaN(userAnswer)) {
-            return;
-        }
-
-        // Record time spent
-        const timeSpent = (Date.now() - this.questionStartTime) / 1000;
-        this.problems[this.currentIndex].timeSpent = timeSpent;
-
-        // Check answer
-        const problem = this.problems[this.currentIndex];
-        const isCorrect = problemGenerator.checkAnswer(problem, userAnswer);
-
-        // Show feedback
-        this.showFeedback(isCorrect, problem.correctAnswer);
-
-        // Auto-advance after delay
-        setTimeout(() => {
-            this.nextQuestion();
-        }, isCorrect ? 1000 : 2000);
+    // Record time spent on first attempt only
+    if (this.attemptCount === 1) {
+      const timeSpent = (Date.now() - this.questionStartTime) / 1000;
+      this.problems[this.currentIndex].timeSpent = timeSpent;
     }
 
-    skipQuestion() {
-        this.problems[this.currentIndex].userAnswer = null;
-        this.problems[this.currentIndex].isCorrect = null;
+    // Check answer
+    const problem = this.problems[this.currentIndex];
+    const isCorrect = problemGenerator.checkAnswer(problem, userAnswer);
+
+    if (isCorrect) {
+      // Record correct answer and advance
+      this.problems[this.currentIndex].userAnswer = userAnswer;
+      this.problems[this.currentIndex].isCorrect = true;
+      this.problems[this.currentIndex].attempts = this.attemptCount;
+
+      // Show feedback
+      this.showFeedback(true, problem.correctAnswer);
+
+      // Auto-advance after delay
+      setTimeout(() => {
         this.nextQuestion();
+      }, 1000);
+    } else {
+      // Wrong answer - allow retry
+      this.showFeedback(false, problem.correctAnswer);
+
+      // Clear answer after short delay to allow retry
+      setTimeout(() => {
+        this.currentAnswer = '';
+        this.updateAnswerDisplay();
+        this.clearFeedback();
+      }, 1500);
     }
+  }
 
-    showFeedback(isCorrect, correctAnswer) {
-        const feedback = document.getElementById('feedback');
-        feedback.classList.remove('hidden', 'correct', 'incorrect');
+  skipQuestion() {
+    this.problems[this.currentIndex].userAnswer = null;
+    this.problems[this.currentIndex].isCorrect = null;
+    this.nextQuestion();
+  }
 
-        if (isCorrect) {
-            feedback.textContent = '🌟 Correct! Great job!';
-            feedback.classList.add('correct');
-            this.createStarBurst();
-        } else {
-            feedback.textContent = `Not quite! The answer is ${correctAnswer}`;
-            feedback.classList.add('incorrect');
-        }
+  showFeedback(isCorrect, correctAnswer) {
+    const feedback = document.getElementById('feedback');
+    const t = languageService.t.bind(languageService);
+    feedback.classList.remove('hidden', 'correct', 'incorrect');
 
-        // Disable input
-        document.getElementById('answer-input').disabled = true;
-        document.getElementById('submit-btn').disabled = true;
-        document.getElementById('skip-btn').disabled = true;
+    if (isCorrect) {
+      feedback.textContent = t('correct');
+      feedback.classList.add('correct');
+      this.createStarBurst();
+
+      // Disable buttons only when correct
+      document.getElementById('submit-btn').disabled = true;
+      document.getElementById('skip-btn').disabled = true;
+    } else {
+      feedback.textContent = `${t('incorrect')}! ${t('tryAgain')}`;
+      feedback.classList.add('incorrect');
+      // Keep buttons enabled for retry
     }
+  }
 
-    createStarBurst() {
-        // Create star animation
-        const container = document.querySelector('.container');
-        for (let i = 0; i < 5; i++) {
-            const star = document.createElement('div');
-            star.textContent = '⭐';
-            star.style.position = 'absolute';
-            star.style.fontSize = '2rem';
-            star.style.left = '50%';
-            star.style.top = '50%';
-            star.style.pointerEvents = 'none';
-            star.classList.add('animate-star-collect');
+  clearFeedback() {
+    const feedback = document.getElementById('feedback');
+    feedback.classList.add('hidden');
+    feedback.classList.remove('correct', 'incorrect');
+  }
 
-            const angle = (Math.PI * 2 * i) / 5;
-            const distance = 100;
-            star.style.transform = `translate(${Math.cos(angle) * distance}px, ${Math.sin(angle) * distance}px)`;
+  createStarBurst() {
+    // Create star animation
+    const container = document.querySelector('.container');
+    for (let i = 0; i < 5; i++) {
+      const star = document.createElement('div');
+      star.textContent = '⭐';
+      star.style.position = 'absolute';
+      star.style.fontSize = '2rem';
+      star.style.left = '50%';
+      star.style.top = '50%';
+      star.style.pointerEvents = 'none';
+      star.classList.add('animate-star-collect');
 
-            container.appendChild(star);
+      const angle = (Math.PI * 2 * i) / 5;
+      const distance = 100;
+      star.style.transform = `translate(${Math.cos(angle) * distance}px, ${Math.sin(angle) * distance}px)`;
 
-            setTimeout(() => star.remove(), 600);
-        }
+      container.appendChild(star);
+
+      setTimeout(() => star.remove(), 600);
     }
+  }
 
-    nextQuestion() {
-        this.currentIndex++;
+  nextQuestion() {
+    this.currentIndex++;
+    this.currentAnswer = '';
+    this.attemptCount = 0;
 
-        if (this.currentIndex >= this.problems.length) {
-            // Session complete
-            this.finishSession();
-        } else {
-            // Re-render next question
-            const app = document.getElementById('app');
-            app.innerHTML = '';
-            app.appendChild(this.render());
-            this.afterRender();
-        }
+    if (this.currentIndex >= this.problems.length) {
+      // Session complete
+      this.finishSession();
+    } else {
+      // Re-render next question
+      const app = document.getElementById('app');
+      app.innerHTML = '';
+      app.appendChild(this.render());
+      this.afterRender();
     }
+  }
 
-    finishSession() {
-        const totalTime = Math.floor((Date.now() - this.startTime) / 1000);
-        const correctAnswers = this.problems.filter(p => p.isCorrect).length;
+  finishSession() {
+    const totalTime = Math.floor((Date.now() - this.startTime) / 1000);
+    const correctAnswers = this.problems.filter(p => p.isCorrect).length;
 
-        const sessionData = {
-            settings: this.settings,
-            problems: this.problems,
-            totalTime,
-            correctAnswers,
-            totalQuestions: this.problems.length
-        };
+    const sessionData = {
+      settings: this.settings,
+      problems: this.problems,
+      totalTime,
+      correctAnswers,
+      totalQuestions: this.problems.length
+    };
 
-        router.navigate('result', { sessionData });
-    }
+    router.navigate('result', { sessionData });
+  }
 }

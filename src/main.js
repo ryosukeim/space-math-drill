@@ -4,6 +4,7 @@
 
 import './style.css';
 import { storageService } from './services/storageService.js';
+import { languageService } from './services/languageService.js';
 import { router } from './utils/router.js';
 import { ProfileSelectScreen } from './screens/ProfileSelectScreen.js';
 import { HomeScreen } from './screens/HomeScreen.js';
@@ -33,6 +34,10 @@ async function initApp() {
         // Initialize storage
         await storageService.init();
         console.log('Storage initialized');
+
+        // Initialize language service
+        await languageService.init();
+        console.log('Language service initialized');
 
         // Get app container
         const app = document.getElementById('app');
@@ -77,14 +82,15 @@ async function initApp() {
         // Show error message
         const app = document.getElementById('app');
         if (app) {
+            const t = languageService.t.bind(languageService);
             app.innerHTML = `
         <div style="padding: 2rem; text-align: center;">
-          <h1>Oops! Something went wrong</h1>
+          <h1>${t('errorOccurred')}</h1>
           <p style="color: var(--text-secondary); margin: 1rem 0;">
             ${error.message}
           </p>
           <button class="btn btn-primary" onclick="location.reload()">
-            Reload App
+            ${t('reloadApp')}
           </button>
         </div>
       `;

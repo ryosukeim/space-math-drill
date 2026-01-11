@@ -3,6 +3,8 @@
 // Manages XP, levels, coins, badges, and rewards
 // ===========================
 
+import { languageService } from './languageService.js';
+
 export const BADGES = {
     FIRST_SESSION: {
         id: 'first_session',
@@ -262,16 +264,17 @@ export class GamificationService {
 
     // Get planet name based on XP/level (for visual progression)
     getPlanetName(level) {
+        const t = languageService.t.bind(languageService);
         const planets = [
-            { max: 5, name: 'Earth Orbit', color: '#4a90e2' },
-            { max: 10, name: 'The Moon', color: '#c0c0c0' },
-            { max: 15, name: 'Mars', color: '#ff6b6b' },
-            { max: 20, name: 'Asteroid Belt', color: '#a4a4a4' },
-            { max: 30, name: 'Jupiter', color: '#f9ca24' },
-            { max: 40, name: 'Saturn', color: '#ffd93d' },
-            { max: 50, name: 'Uranus', color: '#6dff6d' },
-            { max: 75, name: 'Neptune', color: '#6c5ce7' },
-            { max: 100, name: 'Deep Space', color: '#fd79a8' }
+            { max: 5, name: t('planet_earth_orbit'), color: '#4a90e2' },
+            { max: 10, name: t('planet_moon'), color: '#c0c0c0' },
+            { max: 15, name: t('planet_mars'), color: '#ff6b6b' },
+            { max: 20, name: t('planet_asteroid'), color: '#a4a4a4' },
+            { max: 30, name: t('planet_jupiter'), color: '#f9ca24' },
+            { max: 40, name: t('planet_saturn'), color: '#ffd93d' },
+            { max: 50, name: t('planet_uranus'), color: '#6dff6d' },
+            { max: 75, name: t('planet_neptune'), color: '#6c5ce7' },
+            { max: 100, name: t('planet_deep_space'), color: '#fd79a8' }
         ];
 
         for (const planet of planets) {

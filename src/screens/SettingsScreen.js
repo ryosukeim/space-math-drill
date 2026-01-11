@@ -3,6 +3,7 @@
 // Configure practice mode settings
 // ===========================
 
+import { languageService } from '../services/languageService.js';
 import { router } from '../utils/router.js';
 
 export class SettingsScreen {
@@ -27,67 +28,79 @@ export class SettingsScreen {
   render() {
     const container = document.createElement('div');
     container.className = 'screen fade-in';
+    const t = languageService.t.bind(languageService);
+    const currentLang = languageService.getCurrentLanguage();
 
     container.innerHTML = `
       <div class="container" style="max-width: 700px;">
         <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem;">
-          <button class="btn btn-secondary btn-small" id="back-btn">← Back</button>
-          <h1 style="margin: 0;">Practice Settings</h1>
+          <button class="btn btn-secondary btn-small" id="back-btn">← ${t('back')}</button>
+          <h1 style="margin: 0;">${t('practiceSettings')}</h1>
+        </div>
+
+        <!-- Language Selector -->
+        <div class="card mb-3">
+          <h2>${t('language')}</h2>
+          <p class="text-small text-secondary mb-3">${t('selectLanguage')}</p>
+          <div class="language-buttons">
+            <button class="btn btn-secondary lang-btn ${currentLang === 'en' ? 'selected' : ''}" data-lang="en">English</button>
+            <button class="btn btn-secondary lang-btn ${currentLang === 'ja' ? 'selected' : ''}" data-lang="ja">日本語</button>
+          </div>
         </div>
 
         <!-- Operations -->
         <div class="card mb-3">
-          <h2>Choose Operations</h2>
-          <p class="text-small text-secondary mb-3">Select one or more operations to practice</p>
+          <h2>${t('chooseOperations')}</h2>
+          <p class="text-small text-secondary mb-3">${t('selectOperations')}</p>
           <div class="operation-grid">
             <label class="operation-option ${this.settings.operations.addition ? 'selected' : ''}" data-operation="addition">
               <input type="checkbox" ${this.settings.operations.addition ? 'checked' : ''}>
               <div class="operation-icon">➕</div>
-              <span>Addition</span>
+              <span>${t('addition')}</span>
             </label>
             <label class="operation-option ${this.settings.operations.subtraction ? 'selected' : ''}" data-operation="subtraction">
               <input type="checkbox" ${this.settings.operations.subtraction ? 'checked' : ''}>
               <div class="operation-icon">➖</div>
-              <span>Subtraction</span>
+              <span>${t('subtraction')}</span>
             </label>
             <label class="operation-option ${this.settings.operations.multiplication ? 'selected' : ''}" data-operation="multiplication">
               <input type="checkbox" ${this.settings.operations.multiplication ? 'checked' : ''}>
               <div class="operation-icon">✖️</div>
-              <span>Multiplication</span>
+              <span>${t('multiplication')}</span>
             </label>
             <label class="operation-option ${this.settings.operations.division ? 'selected' : ''}" data-operation="division">
               <input type="checkbox" ${this.settings.operations.division ? 'checked' : ''}>
               <div class="operation-icon">➗</div>
-              <span>Division</span>
+              <span>${t('division')}</span>
             </label>
           </div>
         </div>
 
         <!-- Difficulty -->
         <div class="card mb-3">
-          <h2>Difficulty Level</h2>
+          <h2>${t('difficultyLevel')}</h2>
           <div class="difficulty-buttons">
             <button class="btn btn-large difficulty-btn selected" data-difficulty="easy">
               <div style="font-size: 2rem; margin-bottom: 0.5rem;">🌟</div>
-              <div>Easy</div>
-              <div class="text-small" style="opacity: 0.7;">1-digit numbers</div>
+              <div>${t('easy')}</div>
+              <div class="text-small" style="opacity: 0.7;">${t('easyDesc')}</div>
             </button>
             <button class="btn btn-large difficulty-btn" data-difficulty="normal">
               <div style="font-size: 2rem; margin-bottom: 0.5rem;">⭐⭐</div>
-              <div>Normal</div>
-              <div class="text-small" style="opacity: 0.7;">2-digit numbers</div>
+              <div>${t('normal')}</div>
+              <div class="text-small" style="opacity: 0.7;">${t('normalDesc')}</div>
             </button>
             <button class="btn btn-large difficulty-btn" data-difficulty="hard">
               <div style="font-size: 2rem; margin-bottom: 0.5rem;">⭐⭐⭐</div>
-              <div>Hard</div>
-              <div class="text-small" style="opacity: 0.7;">3-digit numbers</div>
+              <div>${t('hard')}</div>
+              <div class="text-small" style="opacity: 0.7;">${t('hardDesc')}</div>
             </button>
           </div>
         </div>
 
         <!-- Question Count -->
         <div class="card mb-4">
-          <h2>Number of Questions</h2>
+          <h2>${t('numberOfQuestions')}</h2>
           <div class="question-count-buttons">
             <button class="btn btn-secondary count-btn" data-count="5">5</button>
             <button class="btn btn-secondary count-btn selected" data-count="10">10</button>
@@ -99,7 +112,7 @@ export class SettingsScreen {
 
         <!-- Start Button -->
         <button class="btn btn-primary btn-large" id="start-btn" style="width: 100%;">
-          🚀 Start Practice!
+          ${t('startPractice')}
         </button>
       </div>
     `;
@@ -185,12 +198,41 @@ export class SettingsScreen {
         background: var(--cosmic-purple);
         border-color: var(--cosmic-purple);
       }
+
+      .language-buttons {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+
+      .lang-btn {
+        flex: 1;
+        min-width: 120px;
+        font-family: var(--font-display);
+        font-size: 1rem;
+      }
+
+      .lang-btn.selected {
+        background: var(--cosmic-purple);
+        border-color: var(--cosmic-purple);
+      }
     `;
     document.head.appendChild(style);
 
     // Event listeners
     const backBtn = document.getElementById('back-btn');
     backBtn.addEventListener('click', () => router.navigate('home'));
+
+    // Language selection
+    const langBtns = document.querySelectorAll('.lang-btn');
+    langBtns.forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const lang = btn.dataset.lang;
+        await languageService.setLanguage(lang);
+        // Re-navigate to settings to refresh UI with new language
+        router.navigate('settings');
+      });
+    });
 
     // Operation selection
     const operationOptions = document.querySelectorAll('.operation-option');

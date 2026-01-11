@@ -4,45 +4,54 @@
 // ===========================
 
 import { storageService } from '../services/storageService.js';
+import { languageService } from '../services/languageService.js';
 import { router } from '../utils/router.js';
 
 export class ProfileSelectScreen {
-    constructor() {
-        this.profiles = [];
-    }
+  constructor() {
+    this.profiles = [];
+  }
 
-    async init() {
-        this.profiles = await storageService.getAllProfiles();
-    }
+  async init() {
+    this.profiles = await storageService.getAllProfiles();
+  }
 
-    render() {
-        const container = document.createElement('div');
-        container.className = 'screen centered fade-in';
+  render() {
+    const container = document.createElement('div');
+    container.className = 'screen centered fade-in';
+    const t = languageService.t.bind(languageService);
+    const currentLang = languageService.getCurrentLanguage();
 
-        container.innerHTML = `
+    container.innerHTML = `
       <div class="container" style="max-width: 600px;">
-        <h1 class="text-center">🚀 Space Math Drill</h1>
-        <p class="text-center text-large mb-4">Choose your astronaut</p>
+        <!-- Language Selector -->
+        <div style="display: flex; justify-content: center; gap: 0.5rem; margin-bottom: 2rem;">
+          <button class="btn btn-secondary btn-small lang-btn ${currentLang === 'en' ? 'selected' : ''}" data-lang="en">English</button>
+          <button class="btn btn-secondary btn-small lang-btn ${currentLang === 'ja' ? 'selected' : ''}" data-lang="ja">日本語</button>
+        </div>
+        
+        <h1 class="text-center">${t('appTitle')}</h1>
+        <p class="text-center text-large mb-4">${t('chooseAstronaut')}</p>
         
         <div class="flex-column" id="profile-list">
           ${this.renderProfiles()}
         </div>
         
         <button class="btn btn-primary btn-large mt-4" id="new-profile-btn" style="width: 100%;">
-          ➕ Create New Profile
+          ${t('createNewProfile')}
         </button>
       </div>
       
       <div id="profile-modal" class="hidden">
         <div class="modal-overlay"></div>
         <div class="modal-content card">
-          <h2>Create Profile</h2>
+          <h2>${t('createProfile')}</h2>
           <div class="input-group">
-            <label class="input-label">Name</label>
-            <input type="text" class="input-field" id="profile-name" placeholder="Enter your name" maxlength="20" />
+            <label class="input-label">${t('profileName')}</label>
+            <input type="text" class="input-field" id="profile-name" placeholder="${t('enterName')}" maxlength="20" />
           </div>
           <div class="input-group">
-            <label class="input-label">Choose Color</label>
+            <label class="input-label">${t('chooseColor')}</label>
             <div class="color-picker" id="color-picker">
               <div class="color-option" data-color="#6c5ce7" style="background: #6c5ce7;"></div>
               <div class="color-option" data-color="#ff6b6b" style="background: #ff6b6b;"></div>
@@ -53,22 +62,23 @@ export class ProfileSelectScreen {
             </div>
           </div>
           <div class="flex-row" style="gap: 1rem; margin-top: 1.5rem;">
-            <button class="btn btn-secondary" id="cancel-profile-btn" style="flex: 1;">Cancel</button>
-            <button class="btn btn-primary" id="create-profile-btn" style="flex: 1;">Create</button>
+            <button class="btn btn-secondary" id="cancel-profile-btn" style="flex: 1;">${t('cancel')}</button>
+            <button class="btn btn-primary" id="create-profile-btn" style="flex: 1;">${t('create')}</button>
           </div>
         </div>
       </div>
     `;
 
-        return container;
+    return container;
+  }
+
+  renderProfiles() {
+    const t = languageService.t.bind(languageService);
+    if (this.profiles.length === 0) {
+      return `<p class="text-center" style="color: var(--text-secondary); padding: 2rem;">${t('noProfiles')}</p>`;
     }
 
-    renderProfiles() {
-        if (this.profiles.length === 0) {
-            return '<p class="text-center" style="color: var(--text-secondary); padding: 2rem;">No profiles yet. Create one to get started!</p>';
-        }
-
-        return this.profiles.map(profile => `
+    return this.profiles.map(profile => `
       <div class="card card-clickable profile-card" data-profile-id="${profile.id}">
         <div style="display: flex; align-items: center; gap: 1rem;">
           <div class="profile-avatar" style="background: ${profile.avatarColor};">
@@ -77,20 +87,20 @@ export class ProfileSelectScreen {
           <div style="flex: 1;">
             <h3 style="margin: 0;">${profile.name}</h3>
             <div style="display: flex; gap: 1rem; margin-top: 0.5rem; font-size: 0.875rem;">
-              <span>Level ${profile.level}</span>
-              <span>🔥 ${profile.streak} day streak</span>
+              <span>${t('level')} ${profile.level}</span>
+              <span>🔥 ${profile.streak} ${t('dayStreak')}</span>
             </div>
           </div>
           <div style="font-size: 2rem;">→</div>
         </div>
       </div>
     `).join('');
-    }
+  }
 
-    afterRender() {
-        // Add styles for modal
-        const style = document.createElement('style');
-        style.textContent = `
+  afterRender() {
+    // Add styles for modal
+    const style = document.createElement('style');
+    style.textContent = `
       .profile-avatar {
         width: 60px;
         height: 60px;
@@ -158,86 +168,103 @@ export class ProfileSelectScreen {
         border-color: white;
         box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.2);
       }
+      
+      .lang-btn.selected {
+        background: var(--cosmic-purple);
+        border-color: var(--cosmic-purple);
+      }
     `;
-        document.head.appendChild(style);
+    document.head.appendChild(style);
 
-        // Event listeners
-        const profileCards = document.querySelectorAll('.profile-card');
-        profileCards.forEach(card => {
-            card.addEventListener('click', () => {
-                const profileId = card.dataset.profileId;
-                this.selectProfile(profileId);
-            });
-        });
+    // Language selection
+    const langBtns = document.querySelectorAll('.lang-btn');
+    langBtns.forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const lang = btn.dataset.lang;
+        await languageService.setLanguage(lang);
+        // Re-navigate to profile-select to refresh UI with new language
+        router.navigate('profile-select');
+      });
+    });
 
-        const newProfileBtn = document.getElementById('new-profile-btn');
-        newProfileBtn.addEventListener('click', () => this.showCreateModal());
+    // Event listeners
+    const profileCards = document.querySelectorAll('.profile-card');
+    profileCards.forEach(card => {
+      card.addEventListener('click', () => {
+        const profileId = card.dataset.profileId;
+        this.selectProfile(profileId);
+      });
+    });
 
-        this.setupModalEvents();
+    const newProfileBtn = document.getElementById('new-profile-btn');
+    newProfileBtn.addEventListener('click', () => this.showCreateModal());
+
+    this.setupModalEvents();
+  }
+
+  showCreateModal() {
+    const modal = document.getElementById('profile-modal');
+    modal.classList.remove('hidden');
+
+    // Select first color by default
+    const firstColor = document.querySelector('.color-option');
+    if (firstColor) {
+      firstColor.classList.add('selected');
     }
 
-    showCreateModal() {
-        const modal = document.getElementById('profile-modal');
-        modal.classList.remove('hidden');
+    // Focus name input
+    const nameInput = document.getElementById('profile-name');
+    setTimeout(() => nameInput.focus(), 100);
+  }
 
-        // Select first color by default
-        const firstColor = document.querySelector('.color-option');
-        if (firstColor) {
-            firstColor.classList.add('selected');
-        }
+  hideCreateModal() {
+    const modal = document.getElementById('profile-modal');
+    modal.classList.add('hidden');
+    document.getElementById('profile-name').value = '';
+  }
 
-        // Focus name input
-        const nameInput = document.getElementById('profile-name');
-        setTimeout(() => nameInput.focus(), 100);
+  setupModalEvents() {
+    const colorOptions = document.querySelectorAll('.color-option');
+    colorOptions.forEach(option => {
+      option.addEventListener('click', () => {
+        colorOptions.forEach(o => o.classList.remove('selected'));
+        option.classList.add('selected');
+      });
+    });
+
+    const cancelBtn = document.getElementById('cancel-profile-btn');
+    cancelBtn.addEventListener('click', () => this.hideCreateModal());
+
+    const createBtn = document.getElementById('create-profile-btn');
+    createBtn.addEventListener('click', () => this.createProfile());
+
+    const nameInput = document.getElementById('profile-name');
+    nameInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        this.createProfile();
+      }
+    });
+  }
+
+  async createProfile() {
+    const nameInput = document.getElementById('profile-name');
+    const name = nameInput.value.trim();
+    const t = languageService.t.bind(languageService);
+
+    if (!name) {
+      alert(t('pleaseEnterName'));
+      return;
     }
 
-    hideCreateModal() {
-        const modal = document.getElementById('profile-modal');
-        modal.classList.add('hidden');
-        document.getElementById('profile-name').value = '';
-    }
+    const selectedColor = document.querySelector('.color-option.selected');
+    const color = selectedColor ? selectedColor.dataset.color : '#6c5ce7';
 
-    setupModalEvents() {
-        const colorOptions = document.querySelectorAll('.color-option');
-        colorOptions.forEach(option => {
-            option.addEventListener('click', () => {
-                colorOptions.forEach(o => o.classList.remove('selected'));
-                option.classList.add('selected');
-            });
-        });
+    const profile = await storageService.createProfile(name, color);
+    await this.selectProfile(profile.id);
+  }
 
-        const cancelBtn = document.getElementById('cancel-profile-btn');
-        cancelBtn.addEventListener('click', () => this.hideCreateModal());
-
-        const createBtn = document.getElementById('create-profile-btn');
-        createBtn.addEventListener('click', () => this.createProfile());
-
-        const nameInput = document.getElementById('profile-name');
-        nameInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.createProfile();
-            }
-        });
-    }
-
-    async createProfile() {
-        const nameInput = document.getElementById('profile-name');
-        const name = nameInput.value.trim();
-
-        if (!name) {
-            alert('Please enter a name');
-            return;
-        }
-
-        const selectedColor = document.querySelector('.color-option.selected');
-        const color = selectedColor ? selectedColor.dataset.color : '#6c5ce7';
-
-        const profile = await storageService.createProfile(name, color);
-        await this.selectProfile(profile.id);
-    }
-
-    async selectProfile(profileId) {
-        await storageService.setCurrentProfile(profileId);
-        router.navigate('home');
-    }
+  async selectProfile(profileId) {
+    await storageService.setCurrentProfile(profileId);
+    router.navigate('home');
+  }
 }
